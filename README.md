@@ -9,7 +9,7 @@ braille unicode.
 
 ### 🎞️ Screenshot
 
-| bobibobobobobibo                                                                                                |
+| bobibobibobobibo                                                                                                |
 | --------------------------------------------------------------------------------------------------------------- |
 | ![image](https://user-images.githubusercontent.com/94043894/223673376-f67f030c-305f-4dd1-beee-301a8da79b5d.png) |
 
