@@ -16,7 +16,8 @@ braille unicode.
 | ![image](https://user-images.githubusercontent.com/94043894/223674513-ed33023d-9181-4fe6-bf7e-cd059bfd0ba3.png) |
 | :-------------------------------------------------------------------------------------------------------------: |
 | ![image](https://user-images.githubusercontent.com/94043894/223675190-ecbd20a6-cf49-40a0-a36d-d7bf6b0a75ff.png) |
-|                                      reverse when your background is white                                      |
+|                                   reverse when your background is too light.                                    |
+
 
 | ![image](https://user-images.githubusercontent.com/94043894/223677662-d27bc50a-3364-461f-bad4-ba7f0c4b8df9.png) |
 | :-------------------------------------------------------------------------------------------------------------: |
