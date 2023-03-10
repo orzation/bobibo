@@ -49,21 +49,20 @@ func putStream(in chan<- img.Img, params *Params) error {
 		if err != nil {
 			return err
 		}
-		go func() {
-			defer close(in)
-			for _, v := range p {
-				in <- v
-			}
-		}()
+		go inStream(in, p...)
 	} else {
 		i, err := img.LoadAImage(params.Image)
 		if err != nil {
 			return err
 		}
-		go func() {
-			defer close(in)
-			in <- i
-		}()
+		go inStream(in, i)
 	}
 	return nil
+}
+
+func inStream[T img.Img](in chan<- img.Img, ims ...T) {
+	defer close(in)
+	for _, v := range ims {
+		in <- v
+	}
 }

@@ -14,8 +14,8 @@ import (
 	xdraw "golang.org/x/image/draw"
 )
 
-type Img image.Image
-type Pales []*image.Paletted
+type Img = image.Image
+type Pale = *image.Paletted
 
 // we use braille char to draw pic.
 var brailleMap = []rune("⠀⢀⡀⣀⠠⢠⡠⣠⠄⢄⡄⣄⠤⢤⡤⣤" +
@@ -36,7 +36,7 @@ func LoadAImage(f io.Reader) (Img, error) {
 }
 
 // loading a gif, return arrays of image.
-func LoadAGif(f io.Reader) (Pales, error) {
+func LoadAGif(f io.Reader) ([]Pale, error) {
 	g, err := gif.DecodeAll(f)
 	if err != nil {
 		return nil, err
