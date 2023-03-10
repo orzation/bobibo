@@ -18,6 +18,7 @@ braille unicode.
 | ![image](https://user-images.githubusercontent.com/94043894/223675190-ecbd20a6-cf49-40a0-a36d-d7bf6b0a75ff.png) |
 |                                   reverse when your background is too light.                                    |
 
+
 | ![image](https://user-images.githubusercontent.com/94043894/223677662-d27bc50a-3364-461f-bad4-ba7f0c4b8df9.png) |
 | :-------------------------------------------------------------------------------------------------------------: |
 |                                          gif, not much use though. 💩                                           |
@@ -28,12 +29,26 @@ braille unicode.
 2. build yourself, makefile in [cli/makefile](cli/makefile)
 3. maybe used as sdk ? `go get github.com/orzation/bobibo`
 
+### 🍰 How2use
+
+`bobibo /path/to/image.png [-option]`
+
+options:
+
+- `-r` enable reverse the character color.
+- `-g` enable gif mode, print every frame of gif image.
+- `-s value` set the scale for images(value default 0.5, [1.0, +)).
+- `-t value` set the threshold of binarization(value default generate by OTSU, [0, 255]).
+
+> use `bobibo help` to print options.
+> use `bobibo version` to print version.
+
 ### ⚙️ Contribute
 
 > hope so 💩
 
 1. fork
-2. do your thing
+2. do your things
 3. pull request
 
 ### 📄 License
