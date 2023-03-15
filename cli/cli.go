@@ -14,17 +14,19 @@ var (
 
 func main() {
 	if len(os.Args) <= 1 {
-		fmt.Println("Please input a path of image :P")
-		fmt.Println("Use help to print options :P")
-		fmt.Println("Use version to print version :P")
+		fmt.Println("Please input a path of image.")
+		fmt.Println("Or using help to print options.")
+		fmt.Println("Or using version to print version.")
+		fmt.Println(":P")
 		os.Exit(1)
 	}
 	path := os.Args[1]
 	if path == "help" {
-		fmt.Println("Use -r to reverse the char color :P")
-		fmt.Println("Use -g to enable gif analyzation, default: disable :P")
-		fmt.Println("Use -s [d]{[0, +)} to set the scale of art :P")
-		fmt.Println("Use -t [d]{[0, 255]} to set the threshold of binarization :P")
+		fmt.Println("Options:")
+		fmt.Println("  -r                 reverse the char color.")
+		fmt.Println("  -g                 enable gif analyzation, default: disable.")
+		fmt.Println("  -s [d](0, +)       set the scale of art.  [default: 0.5]")
+		fmt.Println("  -t [d][0, 255]     set the threshold of binarization.  [default: gen by ostu]")
 		os.Exit(0)
 	} else if path == "version" {
 		fmt.Printf("BoBiBo %s :P\n", version)
@@ -50,15 +52,22 @@ func main() {
 		case "-s":
 			f, err := strconv.ParseFloat(os.Args[i+3], 64)
 			if err != nil {
-				fmt.Println(err.Error())
-				fmt.Println("The range of scale must be [0, +)")
+				fmt.Println("The range of scale must at (0, +).")
+				os.Exit(1)
+			}
+			if f == 0 {
+				fmt.Println("The range of scale must at (0, +).")
 				os.Exit(1)
 			}
 			scale = f
 		case "-t":
 			i, err := strconv.ParseInt(os.Args[i+3], 10, 64)
 			if err != nil {
-				fmt.Println("The range of threshold must be [0, 255]")
+				fmt.Println("The range of threshold must at [0, 255].")
+				os.Exit(1)
+			}
+			if i < 0 || i > 255 {
+				fmt.Println("The range of threshold must at [0, 255].")
 				os.Exit(1)
 			}
 			threshold = int(i)
