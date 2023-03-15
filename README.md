@@ -37,7 +37,7 @@ options:
 
 - `-r` enable reverse the character color.
 - `-g` enable gif mode, print every frame of gif image.
-- `-s value` set the scale for images(value default 0.5, [1.0, +)).
+- `-s value` set the scale for images(value default 0.5, (0, +)).
 - `-t value` set the threshold of binarization(value default generate by OTSU, [0, 255]).
 
 > use `bobibo help` to print options.

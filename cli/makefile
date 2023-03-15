@@ -1,14 +1,22 @@
-OS = linux
-ARCH = amd64
-EXE = bobibo_$(OS)_$(ARCH)
-IS_STATIC = 0
-VERSION=V1.0.1
-all: build
+VERSION=V1.1.0
+EXE=bobibo
+DESTDIR :=
 
+.PHONY: default
+default: build
+
+.PHONY: build
 build: cli.go
-	CGO_ENABLED=$(IS_STATIC) GOOS=$(OS) GOARCH=$(ARCH) go build -ldflags="-X 'main.version=$(VERSION)' -s -w" -o $(EXE)
+	go build -ldflags="-X 'main.version=$(VERSION)' -s -w" -o $(EXE)
+	upx $(EXE)	# upx not found ? install it or remove this line.
 	@echo Build Success !!!
 
-compress: $(EXE)
-	upx $(EXE) -o $(EXE)_cprs
-	@echo Compress Success !!!
+.PHONY: install
+install: $(EXE)
+	install -Dm755 $(EXE) $(DESTDIR)/usr/bin/$(EXE)
+	@echo install Success !!!
+
+.PHONY: uninstall
+uninstall:
+	rm -f /usr/bin/$(EXE)
+	@echo uninstall Success !!!
