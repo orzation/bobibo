@@ -17,7 +17,7 @@ import (
 type Img = image.Image
 type Pale = *image.Paletted
 
-// we use braille char to draw pic.
+// use braille chars to draw arts.
 var brailleMap = []rune("⠀⢀⡀⣀⠠⢠⡠⣠⠄⢄⡄⣄⠤⢤⡤⣤" +
 	"⠐⢐⡐⣐⠰⢰⡰⣰⠔⢔⡔⣔⠴⢴⡴⣴⠂⢂⡂⣂⠢⢢⡢⣢⠆⢆⡆⣆⠦⢦⡦⣦⠒⢒⡒⣒⠲⢲⡲⣲⠖⢖⡖⣖⠶⢶⡶⣶" +
 	"⠈⢈⡈⣈⠨⢨⡨⣨⠌⢌⡌⣌⠬⢬⡬⣬⠘⢘⡘⣘⠸⢸⡸⣸⠜⢜⡜⣜⠼⢼⡼⣼⠊⢊⡊⣊⠪⢪⡪⣪⠎⢎⡎⣎⠮⢮⡮⣮⠚⢚⡚⣚⠺⢺⡺⣺⠞⢞⡞⣞⠾⢾⡾⣾" +
@@ -36,12 +36,12 @@ func LoadAImage(f io.Reader) (Img, error) {
 }
 
 // loading a gif, return arrays of image.
-func LoadAGif(f io.Reader) ([]Pale, error) {
+func LoadAGif(f io.Reader) ([]Pale, []int, error) {
 	g, err := gif.DecodeAll(f)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return g.Image, nil
+	return g.Image, g.Delay, nil
 }
 
 // resizing the image with scale value, it won't change the ratio.
@@ -69,7 +69,7 @@ var TurnGray = u.GenChanFunc(func(in <-chan Img, out chan<- Img) {
 })
 
 // turning image to 2d binary matrix.
-// your threshold to adjust the binarization.
+// use threshold to adjust the binarization.
 var BinotImg = func(threshold int) func(<-chan Img) <-chan [][]bool {
 	return u.GenChanFunc(func(in <-chan Img, out chan<- [][]bool) {
 		for im := range in {
@@ -112,13 +112,13 @@ func otsu(im Img) uint8 {
 		grayPro[i] *= 1.0 / float32(pixelSum)
 		u += float32(i) * grayPro[i]
 	}
-	var wk, uk, gmax float32
+	var w1, u1, gmax float32
 	for i := 0; i < grayScale; i++ {
-		wk += grayPro[i]
-		uk += float32(i) * grayPro[i]
+		w1 += grayPro[i]
+		u1 += float32(i) * grayPro[i]
 
-		tmp := uk - u*wk
-		sigma := tmp * tmp / (wk * (1 - wk))
+		tmp := u1 - u*w1
+		sigma := tmp * tmp / (w1 * (1 - w1))
 		if sigma >= gmax {
 			threshold = uint8(i)
 			gmax = sigma

@@ -1,4 +1,4 @@
-VERSION=V1.1.0
+VERSION=V1.2.0
 EXE=bobibo
 DESTDIR :=
 
@@ -8,7 +8,6 @@ default: build
 .PHONY: build
 build: cli.go
 	go build -ldflags="-X 'main.version=$(VERSION)' -s -w" -o $(EXE)
-	upx $(EXE)	# upx not found ? install it or remove this line.
 	@echo Build Success !!!
 
 .PHONY: install

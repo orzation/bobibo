@@ -1,8 +1,8 @@
-OS = linux
+OS = windows
 ARCH = amd64
 EXE = bobibo_$(OS)_$(ARCH)
 IS_STATIC = 0
-VERSION=V1.1.0
+VERSION=V1.2.0
 all: build
 
 build: cli.go
