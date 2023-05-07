@@ -3,7 +3,7 @@ package util
 // to make a stream chan function
 func GenChanFunc[T any, E any](logic func(in <-chan T, out chan<- E)) func(<-chan T) <-chan E {
 	return func(inChan <-chan T) <-chan E {
-		outChan := make(chan E)
+		outChan := make(chan E, len(inChan))
 		go func() {
 			defer close(outChan)
 			logic(inChan, outChan)

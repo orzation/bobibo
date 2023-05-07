@@ -55,20 +55,18 @@ func BoBiBo(ima io.Reader, isGif, isInverse bool, opts ...Option) (<-chan Art, e
 		}
 	}
 
-	inStream := make(chan img.Img)
-
 	mix := u.Multiply(img.ArtotBin(params.Inverse),
 		u.Multiply(img.BinotImg(params.Threshold),
-			u.Multiply(img.TurnGray,
-				img.Resize(params.Scale),
-			)))
+			img.ResizeAndGray(params.Scale),
+		))
 
-	outStream := mix(inStream)
-	delays, err := putStream(inStream, params)
-	wrap := wrapOut(delays)
+	inStream, delays, err := analyzeImage(params)
 	if err != nil {
 		return nil, err
 	}
+
+	outStream := mix(inStream)
+	wrap := wrapOut(delays)
 	return wrap(outStream), nil
 }
 
@@ -82,36 +80,39 @@ var wrapOut = func(delays []int) func(<-chan []string) <-chan Art {
 		for o := range out {
 			if flag {
 				wrapOut <- Art{Content: o, Delay: delays[cnt]}
+				cnt++
 			} else {
 				wrapOut <- Art{Content: o, Delay: 0}
 			}
-			cnt++
 		}
 	})
 }
 
-func putStream(in chan<- img.Img, params *Params) ([]int, error) {
+func analyzeImage(params *Params) (<-chan img.Img, []int, error) {
 	var delays []int
+	var inChan <-chan img.Img
 	if params.Gif {
 		p, dls, err := img.LoadAGif(params.Image)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		delays = dls
-		go inStream(in, p...)
+		inChan = newInStream(p...)
 	} else {
 		i, err := img.LoadAImage(params.Image)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		go inStream(in, i)
+		inChan = newInStream(i)
 	}
-	return delays, nil
+	return inChan, delays, nil
 }
 
-func inStream[T img.Img](in chan<- img.Img, ims ...T) {
+func newInStream[T img.Img](ims ...T) <-chan img.Img {
+	in := make(chan img.Img, len(ims))
 	defer close(in)
 	for _, v := range ims {
 		in <- v
 	}
+	return in
 }
