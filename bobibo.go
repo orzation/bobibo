@@ -2,7 +2,9 @@ package bobibo
 
 import (
 	"errors"
+	"image"
 	"io"
+	"runtime"
 
 	"github.com/orzation/bobibo/img"
 	u "github.com/orzation/bobibo/util"
@@ -55,9 +57,22 @@ func BoBiBo(ima io.Reader, isGif, isInverse bool, opts ...Option) (<-chan Art, e
 		}
 	}
 
+	var maxCpu = runtime.NumCPU()
+
+	// clone ResizeAndGray fn then sort it.
+	ragFns := func(in <-chan img.Img) <-chan img.Gray {
+		num := 1
+		if cap(in) > 1 {
+			// test
+			num = maxCpu - 3
+		}
+		return u.SortChan(
+			u.CloneChanFn(img.ResizeAndGray(params.Scale), num, in))
+	}
+
 	mix := u.Multiply(img.ArtotBin(params.Inverse),
 		u.Multiply(img.BinotImg(params.Threshold),
-			img.ResizeAndGray(params.Scale),
+			ragFns,
 		))
 
 	inStream, delays, err := analyzeImage(params)
@@ -75,14 +90,14 @@ var wrapOut = func(delays []int) func(<-chan []string) <-chan Art {
 	if delays == nil || len(delays) == 0 {
 		flag = false
 	}
-	return u.GenChanFunc(func(out <-chan []string, wrapOut chan<- Art) {
+	return u.GenChanFn(func(in <-chan []string, out chan<- Art) {
 		cnt := 0
-		for o := range out {
+		for i := range in {
 			if flag {
-				wrapOut <- Art{Content: o, Delay: delays[cnt]}
+				out <- Art{Content: i, Delay: delays[cnt]}
 				cnt++
 			} else {
-				wrapOut <- Art{Content: o, Delay: 0}
+				out <- Art{Content: i, Delay: 0}
 			}
 		}
 	})
@@ -108,11 +123,12 @@ func analyzeImage(params *Params) (<-chan img.Img, []int, error) {
 	return inChan, delays, nil
 }
 
-func newInStream[T img.Img](ims ...T) <-chan img.Img {
+func newInStream[T image.Image](ims ...T) <-chan img.Img {
 	in := make(chan img.Img, len(ims))
 	defer close(in)
-	for _, v := range ims {
-		in <- v
+	for i, v := range ims {
+		imgV := img.NewImg(i, v)
+		in <- imgV
 	}
 	return in
 }

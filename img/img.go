@@ -7,27 +7,24 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
-	"math"
 	"strings"
 
 	u "github.com/orzation/bobibo/util"
-	xdraw "golang.org/x/image/draw"
 )
 
-type Img = image.Image
-type Pale = *image.Paletted
-
 // use braille chars to draw arts.
-var brailleMap = []rune("⠀⢀⡀⣀⠠⢠⡠⣠⠄⢄⡄⣄⠤⢤⡤⣤" +
+const braille = "⠀⢀⡀⣀⠠⢠⡠⣠⠄⢄⡄⣄⠤⢤⡤⣤" +
 	"⠐⢐⡐⣐⠰⢰⡰⣰⠔⢔⡔⣔⠴⢴⡴⣴⠂⢂⡂⣂⠢⢢⡢⣢⠆⢆⡆⣆⠦⢦⡦⣦⠒⢒⡒⣒⠲⢲⡲⣲⠖⢖⡖⣖⠶⢶⡶⣶" +
 	"⠈⢈⡈⣈⠨⢨⡨⣨⠌⢌⡌⣌⠬⢬⡬⣬⠘⢘⡘⣘⠸⢸⡸⣸⠜⢜⡜⣜⠼⢼⡼⣼⠊⢊⡊⣊⠪⢪⡪⣪⠎⢎⡎⣎⠮⢮⡮⣮⠚⢚⡚⣚⠺⢺⡺⣺⠞⢞⡞⣞⠾⢾⡾⣾" +
 	"⠁⢁⡁⣁⠡⢡⡡⣡⠅⢅⡅⣅⠥⢥⡥⣥⠑⢑⡑⣑⠱⢱⡱⣱⠕⢕⡕⣕⠵⢵⡵⣵⠃⢃⡃⣃⠣⢣⡣⣣⠇⢇⡇⣇⠧⢧⡧⣧⠓⢓⡓⣓⠳⢳⡳⣳⠗⢗⡗⣗⠷⢷⡷⣷" +
-	"⠉⢉⡉⣉⠩⢩⡩⣩⠍⢍⡍⣍⠭⢭⡭⣭⠙⢙⡙⣙⠹⢹⡹⣹⠝⢝⡝⣝⠽⢽⡽⣽⠋⢋⡋⣋⠫⢫⡫⣫⠏⢏⡏⣏⠯⢯⡯⣯⠛⢛⡛⣛⠻⢻⡻⣻⠟⢟⡟⣟⠿⢿⡿⣿")
+	"⠉⢉⡉⣉⠩⢩⡩⣩⠍⢍⡍⣍⠭⢭⡭⣭⠙⢙⡙⣙⠹⢹⡹⣹⠝⢝⡝⣝⠽⢽⡽⣽⠋⢋⡋⣋⠫⢫⡫⣫⠏⢏⡏⣏⠯⢯⡯⣯⠛⢛⡛⣛⠻⢻⡻⣻⠟⢟⡟⣟⠿⢿⡿⣿"
+
+var brailleMap = []rune(braille)
 
 // loading an image, only support png and jpeg.
 // if pass a gif, return the first embedded image.
 // if there is any thing wrong, panic.
-func LoadAImage(f io.Reader) (Img, error) {
+func LoadAImage(f io.Reader) (image.Image, error) {
 	i, _, err := image.Decode(f)
 	if err != nil {
 		return nil, err
@@ -44,61 +41,75 @@ func LoadAGif(f io.Reader) ([]Pale, []int, error) {
 	return g.Image, g.Delay, nil
 }
 
-// resizing the image with scale value, it won't change the ratio.
+// resize the image with scale value, using nearestNeighbor.
 // return a stream chan function.
-var ResizeAndGray = func(scale float64) func(<-chan Img) <-chan *image.Gray {
-	return u.GenChanFunc(func(in <-chan Img, out chan<- *image.Gray) {
+var ResizeAndGray = func(scale float64) func(<-chan Img) <-chan Gray {
+	return u.GenChanFn(func(in <-chan Img, out chan<- Gray) {
 		for i := range in {
-			dx := int(math.Floor(scale * float64(i.Bounds().Dx())))
-			dy := int(math.Floor(scale * float64(i.Bounds().Dy())))
-			dst := image.NewGray(image.Rect(0, 0, dx, dy))
-			xdraw.NearestNeighbor.Scale(dst, dst.Rect, i, i.Bounds(), xdraw.Over, nil)
-			out <- dst
+			out <- grayNearestNeighbor(scale, i)
 		}
 	})
 }
 
+func grayNearestNeighbor(scale float64, src Img) Gray {
+	DY, DX := src.value.Bounds().Dy(), src.value.Bounds().Dx()
+	dy := int(scale * float64(DY))
+	dx := int(scale * float64(DX))
+	tgt := make([][]uint8, dy)
+
+	for i := 0; i < dy; i++ {
+		tgt[i] = make([]uint8, dx)
+		for j := 0; j < dx; j++ {
+			x, y := int((float64(j) / scale)), int((float64(i) / scale))
+			r, g, b, _ := src.value.At(x, y).RGBA()
+			grayColor := (299*r + 587*g + 114*b) / 1000
+			tgt[i][j] = uint8(grayColor >> 8)
+		}
+	}
+	return Gray{id: src.id, value: tgt}
+}
+
 // turning image to 2d binary matrix.
 // use threshold to adjust the binarization.
-var BinotImg = func(threshold int) func(<-chan *image.Gray) <-chan [][]bool {
-	return u.GenChanFunc(func(in <-chan *image.Gray, out chan<- [][]bool) {
+var BinotImg = func(threshold int) func(<-chan Gray) <-chan [][]bool {
+	return u.GenChanFn(func(in <-chan Gray, out chan<- [][]bool) {
 		for im := range in {
 			out <- img2bin(im, &threshold)
 		}
 	})
 }
 
-func img2bin(im *image.Gray, th *int) [][]bool {
+func img2bin(im Gray, th *int) [][]bool {
 	if *th < 0 || *th > 255 {
 		*th = int(otsu(im))
 	}
-	dx, dy := im.Bounds().Dx(), im.Bounds().Dy()
+	dy, dx := im.size()
 	reB := make([][]bool, dy)
 	for i := range reB {
 		reB[i] = make([]bool, dx)
 		for j := range reB[i] {
-			r, _, _, _ := im.At(j, i).RGBA()
-			reB[i][j] = uint8(r>>8) >= uint8(*th)
+			grayValue := im.value[i][j]
+			reB[i][j] = grayValue >= uint8(*th)
 		}
 	}
 	return reB
 }
 
 // return the best threshold to binarize.
-func otsu(im *image.Gray) uint8 {
+func otsu(im Gray) uint8 {
 	var threshold int = 0
 	const grayScale = 256
 	var u float32
 	var w0, u0 float32
 
-	dx, dy := im.Bounds().Dx(), im.Bounds().Dy()
+	dy, dx := im.size()
 	hist := make([]float32, grayScale)
-	sumPixel := dx * dy
+	sumPixel := dy * dx
 
 	for i := 0; i < dy; i++ {
 		for j := 0; j < dx; j++ {
-			r, _, _, _ := im.At(j, i).RGBA()
-			hist[uint8(r>>8)]++
+			grayValue := im.value[i][j]
+			hist[grayValue]++
 		}
 	}
 
@@ -127,7 +138,7 @@ func otsu(im *image.Gray) uint8 {
 // turning 2d binary matrix to string array.
 // whether reverse color.
 var ArtotBin = func(w bool) func(<-chan [][]bool) <-chan []string {
-	return u.GenChanFunc(func(in <-chan [][]bool, out chan<- []string) {
+	return u.GenChanFn(func(in <-chan [][]bool, out chan<- []string) {
 		for e := range in {
 			out <- bin2art(e, w)
 		}
