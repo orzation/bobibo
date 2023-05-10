@@ -2,32 +2,29 @@ package img
 
 import (
 	"image"
-	"image/draw"
 	"image/gif"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
-	"math"
+	"strings"
 
 	u "github.com/orzation/bobibo/util"
-	xdraw "golang.org/x/image/draw"
 )
 
-type Img = image.Image
-type Pale = *image.Paletted
-
 // use braille chars to draw arts.
-var brailleMap = []rune("⠀⢀⡀⣀⠠⢠⡠⣠⠄⢄⡄⣄⠤⢤⡤⣤" +
+const braille = "⠀⢀⡀⣀⠠⢠⡠⣠⠄⢄⡄⣄⠤⢤⡤⣤" +
 	"⠐⢐⡐⣐⠰⢰⡰⣰⠔⢔⡔⣔⠴⢴⡴⣴⠂⢂⡂⣂⠢⢢⡢⣢⠆⢆⡆⣆⠦⢦⡦⣦⠒⢒⡒⣒⠲⢲⡲⣲⠖⢖⡖⣖⠶⢶⡶⣶" +
 	"⠈⢈⡈⣈⠨⢨⡨⣨⠌⢌⡌⣌⠬⢬⡬⣬⠘⢘⡘⣘⠸⢸⡸⣸⠜⢜⡜⣜⠼⢼⡼⣼⠊⢊⡊⣊⠪⢪⡪⣪⠎⢎⡎⣎⠮⢮⡮⣮⠚⢚⡚⣚⠺⢺⡺⣺⠞⢞⡞⣞⠾⢾⡾⣾" +
 	"⠁⢁⡁⣁⠡⢡⡡⣡⠅⢅⡅⣅⠥⢥⡥⣥⠑⢑⡑⣑⠱⢱⡱⣱⠕⢕⡕⣕⠵⢵⡵⣵⠃⢃⡃⣃⠣⢣⡣⣣⠇⢇⡇⣇⠧⢧⡧⣧⠓⢓⡓⣓⠳⢳⡳⣳⠗⢗⡗⣗⠷⢷⡷⣷" +
-	"⠉⢉⡉⣉⠩⢩⡩⣩⠍⢍⡍⣍⠭⢭⡭⣭⠙⢙⡙⣙⠹⢹⡹⣹⠝⢝⡝⣝⠽⢽⡽⣽⠋⢋⡋⣋⠫⢫⡫⣫⠏⢏⡏⣏⠯⢯⡯⣯⠛⢛⡛⣛⠻⢻⡻⣻⠟⢟⡟⣟⠿⢿⡿⣿")
+	"⠉⢉⡉⣉⠩⢩⡩⣩⠍⢍⡍⣍⠭⢭⡭⣭⠙⢙⡙⣙⠹⢹⡹⣹⠝⢝⡝⣝⠽⢽⡽⣽⠋⢋⡋⣋⠫⢫⡫⣫⠏⢏⡏⣏⠯⢯⡯⣯⠛⢛⡛⣛⠻⢻⡻⣻⠟⢟⡟⣟⠿⢿⡿⣿"
+
+var brailleMap = []rune(braille)
 
 // loading an image, only support png and jpeg.
 // if pass a gif, return the first embedded image.
 // if there is any thing wrong, panic.
-func LoadAImage(f io.Reader) (Img, error) {
+func LoadAImage(f io.Reader) (image.Image, error) {
 	i, _, err := image.Decode(f)
 	if err != nil {
 		return nil, err
@@ -44,93 +41,104 @@ func LoadAGif(f io.Reader) ([]Pale, []int, error) {
 	return g.Image, g.Delay, nil
 }
 
-// resizing the image with scale value, it won't change the ratio.
+// resize the image with scale value, using nearestNeighbor.
 // return a stream chan function.
-var Resize = func(scale float64) func(<-chan Img) <-chan Img {
-	return u.GenChanFunc(func(in <-chan Img, out chan<- Img) {
+var ResizeAndGray = func(scale float64) func(<-chan Img) <-chan Gray {
+	return u.GenChanFn(func(in <-chan Img, out chan<- Gray) {
 		for i := range in {
-			dx := int(math.Floor(scale * float64(i.Bounds().Dx())))
-			dy := int(math.Floor(scale * float64(i.Bounds().Dy())))
-			dst := image.NewRGBA(image.Rect(0, 0, dx, dy))
-			xdraw.NearestNeighbor.Scale(dst, dst.Rect, i, i.Bounds(), xdraw.Over, nil)
-			out <- dst
+			out <- grayNearestNeighbor(scale, i)
 		}
 	})
 }
 
-// turning gray.
-var TurnGray = u.GenChanFunc(func(in <-chan Img, out chan<- Img) {
-	for i := range in {
-		dx, dy := i.Bounds().Dx(), i.Bounds().Dy()
-		dst := image.NewGray(image.Rect(0, 0, dx, dy))
-		draw.Draw(dst, dst.Bounds(), i, i.Bounds().Min, draw.Src)
-		out <- dst
+func grayNearestNeighbor(scale float64, src Img) Gray {
+	DY, DX := src.value.Bounds().Dy(), src.value.Bounds().Dx()
+	dy := int(scale * float64(DY))
+	dx := int(scale * float64(DX))
+	tgt := make([][]uint8, dy)
+
+	for i := 0; i < dy; i++ {
+		tgt[i] = make([]uint8, dx)
+		for j := 0; j < dx; j++ {
+			x, y := int((float64(j) / scale)), int((float64(i) / scale))
+			r, g, b, _ := src.value.At(x, y).RGBA()
+			grayColor := (299*r + 587*g + 114*b) / 1000
+			tgt[i][j] = uint8(grayColor >> 8)
+		}
 	}
-})
+	return Gray{id: src.id, value: tgt}
+}
 
 // turning image to 2d binary matrix.
 // use threshold to adjust the binarization.
-var BinotImg = func(threshold int) func(<-chan Img) <-chan [][]bool {
-	return u.GenChanFunc(func(in <-chan Img, out chan<- [][]bool) {
+var BinotImg = func(threshold int) func(<-chan Gray) <-chan [][]bool {
+	return u.GenChanFn(func(in <-chan Gray, out chan<- [][]bool) {
 		for im := range in {
-			out <- img2bin(im, threshold)
+			out <- img2bin(im, &threshold)
 		}
 	})
 }
 
-func img2bin(im Img, th int) [][]bool {
-	if th < 0 || th > 255 {
-		th = int(otsu(im))
+func img2bin(im Gray, th *int) [][]bool {
+	if *th < 0 || *th > 255 {
+		*th = int(otsu(im))
 	}
-	dx, dy := im.Bounds().Dx(), im.Bounds().Dy()
+	dy, dx := im.size()
 	reB := make([][]bool, dy)
 	for i := range reB {
 		reB[i] = make([]bool, dx)
 		for j := range reB[i] {
-			r, _, _, _ := im.At(j, i).RGBA()
-			reB[i][j] = uint8(r>>8) >= uint8(th)
+			grayValue := im.value[i][j]
+			reB[i][j] = grayValue >= uint8(*th)
 		}
 	}
 	return reB
 }
 
 // return the best threshold to binarize.
-func otsu(im Img) uint8 {
-	var threshold uint8 = 0
+func otsu(im Gray) uint8 {
+	var threshold int = 0
 	const grayScale = 256
 	var u float32
-	dx, dy := im.Bounds().Dx(), im.Bounds().Dy()
-	grayPro := make([]float32, grayScale)
-	pixelSum := dx * dy
+	var w0, u0 float32
+
+	dy, dx := im.size()
+	hist := make([]float32, grayScale)
+	sumPixel := dy * dx
+
 	for i := 0; i < dy; i++ {
 		for j := 0; j < dx; j++ {
-			r, _, _, _ := im.At(j, i).RGBA()
-			grayPro[uint8(r>>8)]++
+			grayValue := im.value[i][j]
+			hist[grayValue]++
 		}
 	}
-	for i := 0; i < grayScale; i++ {
-		grayPro[i] *= 1.0 / float32(pixelSum)
-		u += float32(i) * grayPro[i]
-	}
-	var w1, u1, gmax float32
-	for i := 0; i < grayScale; i++ {
-		w1 += grayPro[i]
-		u1 += float32(i) * grayPro[i]
 
-		tmp := u1 - u*w1
-		sigma := tmp * tmp / (w1 * (1 - w1))
-		if sigma >= gmax {
-			threshold = uint8(i)
-			gmax = sigma
+	for i := range [grayScale]struct{}{} {
+		hist[i] *= 1.0 / float32(sumPixel)
+		u += float32(i) * hist[i]
+	}
+	var sigma float32
+	for t := range [grayScale]struct{}{} {
+		w0 += hist[t]
+		u0 += float32(t) * hist[t]
+		if w0 == 0 || 1-w0 == 0 {
+			continue
+		}
+
+		tmp := u0 - u*w0
+		tmp = tmp * tmp / (w0 * (1 - w0))
+		if tmp >= sigma {
+			sigma = tmp
+			threshold = t
 		}
 	}
-	return threshold
+	return uint8(threshold)
 }
 
 // turning 2d binary matrix to string array.
 // whether reverse color.
 var ArtotBin = func(w bool) func(<-chan [][]bool) <-chan []string {
-	return u.GenChanFunc(func(in <-chan [][]bool, out chan<- []string) {
+	return u.GenChanFn(func(in <-chan [][]bool, out chan<- []string) {
 		for e := range in {
 			out <- bin2art(e, w)
 		}
@@ -139,16 +147,18 @@ var ArtotBin = func(w bool) func(<-chan [][]bool) <-chan []string {
 
 func bin2art(bin [][]bool, isWhite bool) []string {
 	dy, dx := len(bin)/4, len(bin[0])/2
-	reStr := make([]string, dy)
+	bufStr := make([]strings.Builder, dy)
+	resStr := make([]string, dy)
 	for i := 0; i < dy; i++ {
 		for j := 0; j < dx; j++ {
-			reStr[i] += cell(i, j, bin, isWhite)
+			bufStr[i].WriteRune(cell(i, j, bin, isWhite))
 		}
+		resStr[i] = bufStr[i].String()
 	}
-	return reStr
+	return resStr
 }
 
-func cell(y, x int, bin [][]bool, isWhite bool) string {
+func cell(y, x int, bin [][]bool, isWhite bool) rune {
 	var reByte uint8 = 0
 	for i := 0; i < 4; i++ {
 		for j := 0; j < 2; j++ {
@@ -163,5 +173,5 @@ func cell(y, x int, bin [][]bool, isWhite bool) string {
 	if isWhite {
 		reByte = ^reByte
 	}
-	return string(brailleMap[reByte])
+	return brailleMap[reByte]
 }
