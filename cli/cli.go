@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 
 	"github.com/orzation/bobibo"
@@ -15,6 +17,7 @@ var (
 	inverse   bool
 	scale     float64
 	threshold int
+	url       bool
 )
 
 func init() {
@@ -22,6 +25,7 @@ func init() {
 	flag.BoolVar(&inverse, "v", false, "inverse the colors.")
 	flag.Float64Var(&scale, "s", 0.5, "scale the size of arts. range: (0, +).")
 	flag.IntVar(&threshold, "t", -1, "set the threshold of binarization. range: [-1, 255], -1 means gen by OTSU.")
+	flag.BoolVar(&url, "l", false, "use network url to load image.")
 }
 
 func main() {
@@ -35,18 +39,26 @@ func main() {
 	}
 
 	opt := args[0]
-	var imgFile *os.File
+	var imgFile io.ReadCloser
 
 	switch opt {
 	case "version":
 		fmt.Printf("BoBiBo %s :P\n", version)
 		return
 	default:
-		f, err := os.Open(opt)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Open image error: ", err.Error())
+		if url {
+			resp, err := http.Get(opt)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Fetch image error: ", err.Error())
+			}
+			imgFile = resp.Body
+		} else {
+			f, err := os.Open(opt)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Open image error: ", err.Error())
+			}
+			imgFile = f
 		}
-		imgFile = f
 	}
 	defer imgFile.Close()
 	arts, err := bobibo.BoBiBo(
