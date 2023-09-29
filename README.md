@@ -37,6 +37,7 @@ options:
 
 - `-v` enable inverse the character color.
 - `-g` enable gif mode(test), print every frame of gif image.
+- `-l` use network url to load image.
 - `-s value` set the scale for images(value default 0.5, (0, +)).
 - `-t value` set the threshold of binarization(value default generate by OTSU, [-1, 255]).
 
