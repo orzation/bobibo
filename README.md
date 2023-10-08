@@ -25,9 +25,10 @@ braille unicode.
 ### 👇 Install
 
 1. `releases` download.
-2. build yourself, makefile in [cli/makefile](cli/makefile).
+2. build yourself, makefile in [makefile](makefile).
 3. maybe used as sdk ? `go get github.com/orzation/bobibo`.
 4. `AUR` use `yay/paru -S bobibo`.
+5. `NixOS` callPackage [default.nix](default.nix).
 
 ### 🍰 How2use
 
