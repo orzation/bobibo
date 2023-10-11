@@ -6,7 +6,7 @@ DESTDIR :=
 default: build
 
 build: cli/cli.go
-	go build -ldflags="-X 'main.version=$(VERSION)' -s -w" -o $(EXE)
+	go build -C cli  -ldflags="-X 'main.version=$(VERSION)' -s -w" -o ../$(EXE)
 	@echo Build Success !!!
 
 install: $(EXE)
