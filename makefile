@@ -1,4 +1,4 @@
-VERSION=V1.4.0
+VERSION=V1.4.1
 EXE=bobibo
 DESTDIR :=
 
