@@ -7,6 +7,8 @@ braille unicode.
 
 > I wrote it, cause i need some anime ascii arts. 💩
 
+If you are looking for colorization, you might be interested in [this img2art](https://github.com/Asthestarsfalll/img2art)."
+
 ### 🎞️ Screenshot
 
 | ![image](https://user-images.githubusercontent.com/94043894/223673376-f67f030c-305f-4dd1-beee-301a8da79b5d.png) |
