@@ -15,7 +15,7 @@ func printArts(arts <-chan b.Art, gifMode bool) error {
 	if !gifMode {
 		for art := range arts {
 			for _, v := range art.Content {
-				fmt.Printf("\r%s\n", v)
+				fmt.Println(v)
 			}
 		}
 		return nil
